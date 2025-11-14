@@ -1,0 +1,98 @@
+---
+title: "Emissions"
+format: html
+editor: visual
+---
+
+This dataset provides annual country-level emissions from year 2015 to 2024, disaggregated by 'road transporatation' subsector. The data was derived from Climate Trace (<https://climatetrace.org/data>). 
+
+```{r}
+
+# Import library
+
+library(tidyverse)
+library(janitor)
+library(here)
+```
+
+You can add options to executable code like this
+
+```{r}
+
+# Read file
+
+df <- read_csv(here::here('data', 'road-transportation_country_emissions_v4_7_0.csv'),
+                      na = c(" ", "NA")) %>%
+  clean_names() #clean data
+
+```
+
+```{r}
+# Renaming column the name of country column
+
+df_rename <- df %>%
+  rename(country = iso3_country )
+```
+
+```{r}
+df_rename$start_time <- as.Date(df_rename$start_time)
+class(df_rename$start_time)
+
+```
+
+```{r}
+df_year <- df_rename %>%
+  mutate(year = year(df_rename$start_time)) 
+
+class(df_year$year)
+
+```
+
+```{r}
+df_mean <- df_year %>%
+  group_by(country) %>% 
+  summarize(mean = mean(emissions_quantity)) %>% 
+  arrange(desc(mean))
+```
+
+```{r}
+# Top 10 countries for emission
+#top_ten <- list(df_mean$country[1:10])
+#class(top_ten)
+
+top_ten <- df_mean$country[1:10]
+
+```
+
+```{r}
+top_countries <- df_year %>%
+  filter(country %in% top_ten)
+  
+```
+
+```{r}
+plot <- ggplot(top_countries, aes(x = start_time, y = emissions_quantity, color = country)) +
+               geom_line() +
+  theme_classic() +
+  scale_x_date(
+    date_breaks = 'years',
+    date_labels = "%Y") +
+  scale_y_continuous(
+    # Divide the values by 1,000,000
+    labels = scales::label_number(scale = 1e-6, suffix = "M t")) +
+  labs(x = "Year",
+       y = "CO2 emission per metric tonnes",
+       title = "Annual top 10 carbon emitting countries from 2015 to 2024
+       by road transportation subsector")
+
+plot
+```
+
+```{r}
+
+ggsave("carbon-emission.png", width = 6, height = 4)
+```
+
+```{r}
+# This graph represents the annual top 10 carbon emitting countries by road transportation subsector from 2015 to 2024. The graph shows that the US is the most carbon emitting country, followed by China and Japan.
+```

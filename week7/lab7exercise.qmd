@@ -1,0 +1,154 @@
+---
+title: "Lab 7"
+subtitle: "The Color of Drinking Water"
+author: "Aakriti Poudel"
+date: "11/13/2025"
+format:
+  pdf:
+    code-fold: false
+    toc: true
+  html: 
+    code-fold: false
+    toc: true
+execute:
+  warning: false
+  message: false
+editor: source
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+#| label: setup
+#| message: false
+#| warning: false
+
+library(tidyverse)
+theme_set(theme_classic(12))
+set.seed(123)
+
+```
+
+```{r}
+#| label: read-data
+
+# Read data
+drinking_water <- read_csv(here::here('week7/drinking_water.csv'))
+
+```
+
+## Your turn
+
+Switzer and Teodoro demonstrated that the *interaction* between race and class is important for understanding the environmental justice dimensions of drinking water. You'll investigate that here through the following steps.
+
+1.  Create a new model with an interaction term between `pctpov` and `pcthisp`.
+
+```{r}
+#| label: your-turn
+
+interaction_model <- glm(violation ~ pctpov + pcthisp + pctpov*pcthisp,
+                    data = drinking_water,
+                    family = binomial(link = 'logit'))
+
+```
+
+2.  Use the summary and confidence intervals to answer the following questions:\
+    **What is the 95% CI for the % Hispanic coefficient?**
+
+    **Answer:** The 95% CI for the % Hispanic coefficient is 0.0095294052 to -0.0017824730.
+
+    **Is the interaction between class and race significantly different than 0?**
+
+    **Answer:** Yes, the interaction between class and race are different than 0. The value is 3.24, which is positive.
+
+```{r}
+confint(interaction_model)['pcthisp', ]
+```
+
+```{r}
+summary(interaction_model)
+```
+
+3.  Create a new predictor data frame with combinations of *both* predictors.
+
+```{r}
+# A grid of predictor(s) to generate predictions
+prediction <- expand_grid(pctpov = 0:100, pcthisp = 0:100)
+
+# Generate out predictions
+interaction_model_pred <- prediction %>% 
+  mutate(p = predict(object = interaction_model,
+                     newdata = prediction,
+                     type = 'response'))
+
+```
+
+4.  Generate predictions, including both the best estimate and 95% CI.
+
+```{r}
+interaction_model_se <- predict(object = interaction_model,
+                          newdata = prediction,
+                          type = 'link',
+                          se.fit = TRUE)
+
+# Go from link space to response space
+linkinv <- family(interaction_model)$linkinv
+interaction_model_pred <- prediction %>% 
+  mutate(
+    # get logit(p)
+    logit_p = interaction_model_se$fit,
+    # 95% CI in link space
+    logit_p_se = interaction_model_se$se.fit,
+    logit_p_lwr = qnorm(0.025, mean = logit_p, sd = logit_p_se),
+    logit_p_upr = qnorm(0.975, mean = logit_p, sd = logit_p_se),
+    # undo the link function using linkinv
+    p = linkinv(logit_p),
+    p_lwr = linkinv(logit_p_lwr),
+    p_upr = linkinv(logit_p_upr))
+```
+
+5.  Plot the predictions. In your plot, put `pcthisp` on the x-axis and probability of SDWA violations on the y-axis. Indicate `pctpov` using color and fill. To make this work, you'll have to filter your predictions to a few levels of `pctpov` (e.g., 0, 25, 50, and 75).
+
+```{r}
+df_pctpov <- interaction_model_pred %>% 
+  filter(pctpov %in% c(0,25,50,75))
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(df_pctpov, aes(x = pcthisp, y = p, 
+               fill = as.factor(pctpov), 
+               color = as.factor(pctpov))) +
+  geom_line(linewidth = 0.8) +
+  geom_ribbon(aes(ymin = p_lwr, ymax = p_upr), 
+              alpha = 0.14, color = NA) +
+  scale_color_viridis_d(option = 'plasma', end = 0.5,
+                        name = 'Poverty level (%)') +
+  scale_fill_viridis_d(option = 'plasma', end = 0.5,
+                       name = 'Poverty level (%)') +
+  labs(title = 'Relationship between predicted violation and Hispanic poverty',
+    x = 'Percent Hispanic (%)',
+    y = 'Probability',
+    caption = 'Shaded regions represents 95% CIs') +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold', size = 12),
+    plot.caption = element_text(color = 'gray30', size = 10, hjust = 0.5),
+    legend.position = 'right')
+```
+
+\`\`\`{r}
+
+The coefficient for an interaction term in a logistic regression model is very difficult to interpret on its own! But that value has important consequences for the lives of millions of people. Predictions are usually more straightforward to interpret than coefficients. Use your figure and the outputs of `summary()` and `confint()` to reflect on the following prompt. Reply to the corresponding thread on Slack with your reflection to get 1 token.
+
+**In plain language, what is the relationship between race, class, and SDWA violations? Which communities face the greatest risks associated with drinking water? How would you use the statistical outputs (model summary, prediction figure) to describe that risk quantitatively? How could those statistical outputs be misinterpreted?**
+
+**Answer**
+
+The summary of the interaction model shows that the effect of Hispanic population on SDWA violation depends on poverty level.
+
+The communities with both high Hispanic populations and high poverty rate face the greatest risks associated with drinking water.
+
+The communities with 0% poverty rate among the Hispanic population have fewer SDWA violations. As the poverty rate for Hispanic population increases to 25%, 50% and 75%, the number of SDWA violations also rises accordingly.
+
+The misinterpretation would be concluding that Hispanic populations or poverty causes SDWA violations. In reality, there are number underlying factors like poor infrastructure, under investment, old water system, and inadequate maintenance in economically disadvantaged areas.
