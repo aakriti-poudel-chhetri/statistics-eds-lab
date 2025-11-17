@@ -1,0 +1,48 @@
+---
+title: "Probability mass functions (PMFs)"
+Author: "Aakriti Poudel"
+Date: "16/11/2025"
+format: html
+editor: visual
+---
+
+Hello everyone! Next week we’re going to cover another **generalized linear model (GLM): Poisson regression**. Where logistic regression is great for binary outcomes, Poisson regression is designed for counts. We’ll use it to look at the relationship between temperature and fire frequency in California. Before class on Monday, please do the following. The figure below shows the probability mass functions (PMFs) for three Poisson variables. Use `expand_grid()` and `dpois()` to reproduce this figure. Poisson is the first new random variable you’ve seen since week 2, so I want you to have an opportunity to preview its parameter (lambda) before class begins. Also, this is useful practice for using `expand_grid()`, which you saw this week in the context of model predictions. Have a great weekend and see you on Monday!
+
+### Load required libraries
+
+```{r}
+library(tidyverse)
+theme_set(theme_classic(14))
+set.seed(123)
+```
+
+```{r}
+# Create all combinations of x values (0-10) and lambda parameters (0.5, 2, 5)
+foo <- expand_grid(x = 0:10,lambda = c(0.5, 2, 5))
+
+```
+
+```{r}
+# Calculate probability mass and create labels for each combination
+pmf <- foo %>% 
+  mutate(mass = dpois(x, lambda))
+```
+
+```{r}
+# Create the plot
+ggplot(pmf, aes(x = x, y = mass)) +
+  geom_linerange(aes(ymin = 0, ymax = mass), linewidth = 0.5) +
+  geom_point(size = 2, shape = 20) +
+  facet_wrap(~lambda, ncol = 1, strip.position = 'right',
+             labeller = labeller(lambda = c("0.5" = "0.5", "2" = "2", "5" = "5"))) +
+  labs(title = 'PMFs for three Poisson random variables',
+       x = 'X',
+       y = 'Mass') +
+  scale_x_continuous(breaks = 0:10) +
+  theme_bw() +
+  theme(strip.text = element_text(size = 10),
+        plot.title = element_text(size = 10, hjust = 0.5))
+```
+
+\
+\
